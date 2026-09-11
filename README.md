@@ -1,66 +1,49 @@
-# Fetal ECG Movement Segmentation with Attention Res-UNet
+Detecting maternal/fetal movement artefacts in fetal ECG (fECG) signals using 1D Attention U-Net models.
 
-A PyTorch-based deep learning pipeline designed to detect and segment fetal movement events from raw ECG signals using advanced physiological feature engineering, sequential stride inference, and hybrid temporal-spatial architectures.
+## Problem
 
----
+Fetal ECG recordings (500 Hz) are corrupted by movement artefacts that distort the signal morphology. This project trains deep learning models to flag, per-sample, which parts of a recording are affected by movement, so that downstream analysis (e.g. fetal heart rate extraction) can discount those segments.
 
-## Overview
+Two task formulations are explored:
 
-Fetal movement detection in ECG signals suffers from non-stationary noise, class imbalance, and baseline drift. This project implements a **1D Residual U-Net (Res-UNet)** augmented with **Atrous Spatial Pyramid Pooling (ASPP)**, **Transformer Self-Attention Bottlenecks**, and **Attention Skip Gates** to accurately locate movement masks in continuous 1D physiological time-series.
+- **Binary detection** — movement vs. no movement at every sample.
+- **Multiclass detection** — no movement vs. 3 distinct movement categories.
 
-### Key Features
-* **Engineered Multi-Channel Inputs**:
-  * Raw normalized ECG signal ($z$-score standardization).
-  * QRS outline envelope tracking extracted via linear interpolation.
-  * Low-frequency baseline wander extraction using moving-average convolutions.
-* **Architecture**:
-  * **Residual Blocks**: 1D convolutions with Group Normalization (`GroupNorm(4, C)`) for stable training across varying batch sizes.
-  * **Multi-Scale Context**: ASPP module using parallel dilated convolutions ($d \in [1, 2, 4, 8]$) to capture localized heartbeats alongside wide-window arrhythmia patterns.
-  * **Global Attention**: Transformer encoder bottleneck modeling long-range temporal dependencies across 7.68-second windows.
-  * **Attention Gates**: Skip-connection gating to filter noise passed from encoder to decoder.
-* **Clinical Sequential Data Loading**:
-  * Strict patient-by-patient, sequential sliding-window extraction (Stride: 250 samples / ~0.5s) to preserve physiological temporal continuity and prevent data leakage.
-* **Class-Balanced Loss**:
-  * Weighted Binary Cross-Entropy (`pos_weight=5.0`) combined with continuous soft-Dice loss for continuous boundary segmentation.
+## Approach
 
----
+1. **QRS peak detection** on the raw signal (used by earlier model variants for peak-relative features).
+2. **Feature extraction** — combinations of the normalised raw signal, QRS-relative residuals, rolling RMS energy, instantaneous beat rate, and first-derivative transients. Later models (e.g. 21+) drop the QRS-dependent features so they also work on datasets without peak annotations.
+3. **Sliding-window inference** (3840-sample / 7.68 s windows) fed into a 1D Attention U-Net.
+4. **Attention U-Net** — a ResNet-style encoder/decoder with attention gates on the skip connections, plus a bottleneck self-attention block for global temporal context.
+5. **Overlap-add averaging** at inference time to reconcile predictions across overlapping windows before thresholding.
 
-## Model Architecture
+See [documentation.md](documentation.md) for a detailed write-up of the pipeline and a comparison across model versions.
 
-```text
-Input Signal [B, 3, 3840] (7.68s @ 500Hz)
-       │
-       ▼
- [ResBlock 1] ──── (Attention Gate) ────┐
-       │ MaxPool1d(2)                   │
-       ▼                                │
- [ResBlock 2] ──── (Attention Gate) ──┐ │
-       │ MaxPool1d(2)                 │ │
-       ▼                              │ │
- [ResBlock 3] ──── (Attention Gate) ┐ │ │
-       │ MaxPool1d(2)               │ │ │
-       ▼                            │ │ │
- [ResBlock 4] ───┐                  │ │ │
-       │ MaxPool1d(2)               │ │ │
-       ▼                            │ │ │
-  [ASPP Block] (d=1, 2, 4, 8)       │ │ │
-       │                            │ │ │
-       ▼                            │ │ │
- [Transformer Bottleneck]           │ │ │
-       │                            │ │ │
-       ▼                            │ │ │
-  [Decoder 4] ◄── Concatenate ◄─────┘ │ │
-       │ Upsample1d(2)                │ │
-       ▼                              │ │
-  [Decoder 3] ◄── Concatenate ◄───────┘ │
-       │ Upsample1d(2)                  │
-       ▼                                │
-  [Decoder 2] ◄── Concatenate ◄─────────┘
-       │ Upsample1d(2)
-       ▼
-  [Decoder 1]
-       │ Conv1d(1x1)
-       ▼
- Output Mask Logits [B, 1, 3840]
+## Repository layout
 
+Model iterations are numbered scripts (`14.py`, `15.py`, ... `23.py`), each a self-contained experiment: feature extraction, model architecture, data loader, and training loop. Later numbers generally supersede earlier ones — see `documentation.md` for what changed between versions. Supporting scripts:
 
+- `eval*.py`, `infer_*.py`, `predict_script.py` — evaluation and inference on trained checkpoints.
+- `plot*.py`, `analyze_classes_*.py` — result visualization and analysis.
+- `*_demo.py`, `dataloader*.py`, `data_verify.py`, `npy_maker.py`, `mask_npy.py` — data preparation and sanity-check utilities.
+- `documentation.md` / `documentation.tex` — detailed method notes.
+
+Trained checkpoints (`*.pth`) and generated plots (`*.png`) are experiment artifacts, not source — see below.
+
+## Setup
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate   # Windows
+pip install torch numpy scipy matplotlib
+```
+
+## Usage
+
+Each numbered script is a standalone training run, pointed at a dataset of paired signal/mask `.npy` files:
+
+```bash
+python 21.py
+```
+
+Update the `DATA_ROOT` path at the top of the script's `main()` to your dataset location before running.
