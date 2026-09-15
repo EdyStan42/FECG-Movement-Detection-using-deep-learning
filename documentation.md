@@ -9,6 +9,14 @@ Two formulations are studied:
 - **Binary detection** (models 14, 18): predict 0 (no movement) or 1 (movement) at every sample.
 - **Multiclass detection** (model 15): predict one of 4 classes at every sample — class 0 (no movement) and classes 1–3 representing distinct movement categories.
 
+- 
+## Approach
+
+1. **QRS peak detection** on the raw signal (used by earlier model variants for peak-relative features).
+2. **Feature extraction** — combinations of the normalised raw signal, QRS-relative residuals, rolling RMS energy, instantaneous beat rate, and first-derivative transients. Later models (e.g. 21+) drop the QRS-dependent features so they also work on datasets without peak annotations.
+3. **Sliding-window inference** (3840-sample / 7.68 s windows) fed into a 1D Attention U-Net.
+4. **Attention U-Net** — a ResNet-style encoder/decoder with attention gates on the skip connections, plus a bottleneck self-attention block for global temporal context.
+5. **Overlap-add averaging** at inference time to reconcile predictions across overlapping windows before thresholding.
 ---
 
 ## 2. General Pipeline
