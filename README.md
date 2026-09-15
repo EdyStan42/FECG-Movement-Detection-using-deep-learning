@@ -16,6 +16,7 @@ Two formulations are studied:
 3. **Sliding-window inference** (3840-sample / 7.68 s windows) fed into a 1D Attention U-Net.
 4. **Attention U-Net** — a ResNet-style encoder/decoder with attention gates on the skip connections, plus a bottleneck self-attention block for global temporal context.
 5. **Overlap-add averaging** at inference time to reconcile predictions across overlapping windows before thresholding.
+![Example Image](Outputs/outline_comparison.png)
 ---
 
 ## 2. General Pipeline
