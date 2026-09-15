@@ -8,8 +8,7 @@ Two formulations are studied:
 
 - **Binary detection** (models 14, 18): predict 0 (no movement) or 1 (movement) at every sample.
 - **Multiclass detection** (model 15): predict one of 4 classes at every sample — class 0 (no movement) and classes 1–3 representing distinct movement categories.
-
-- 
+![Example Image](Outputs/final_prediction_test.png)
 ## Approach
 
 1. **QRS peak detection** on the raw signal (used by earlier model variants for peak-relative features).
