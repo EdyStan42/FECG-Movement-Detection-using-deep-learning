@@ -73,6 +73,7 @@ Features are computed **inside each sliding window** on the 3840-sample slice. N
 | 2 | `residual` | `sig_norm − linear_env` — deviation of the signal from the QRS amplitude trend |
 | 3 | `local_rms` | Rolling RMS energy over a 50-sample (100 ms) window |
 | 4 | `qrs_rate` | Instantaneous beat rate in Hz, linearly interpolated between QRS peaks, normalised |
+![Example Image](Outputs/infer_14_Sem1.png)
 
 If fewer than 2 QRS peaks are detected in a window, features 0, 1 and 4 are set to zero and the raw normalised signal is used as a fallback.
 
